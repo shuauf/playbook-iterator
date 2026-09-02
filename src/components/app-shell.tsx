@@ -28,7 +28,13 @@ const tabs = [
   },
 ] as const
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  storageLabel,
+}: {
+  children: React.ReactNode
+  storageLabel: string
+}) {
   const pathname = usePathname()
 
   return (
@@ -38,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-[11px] font-medium tracking-[0.18em] text-[oklch(0.42_0.06_175)] uppercase">
-                {workspace.team} · Sample workspace
+                {workspace.team}
               </p>
               <Link href="/config" className="font-heading text-[1.65rem] leading-none text-foreground">
                 Playbook Exception Tracker
@@ -49,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-2 self-start rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
               <span className="size-1.5 rounded-full bg-[oklch(0.55_0.12_145)]" />
-              Config is live · local SQLite
+              {storageLabel}
             </div>
           </div>
 
@@ -105,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Exceptions are decisions, not automatic mistakes. The playbook is a
             set of hypotheses.
           </p>
-          <p>Northstar SE · Config persists locally</p>
+          <p>{workspace.team}</p>
         </div>
       </footer>
     </div>

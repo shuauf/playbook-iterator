@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import { IntentBadge } from "@/components/finding-badge"
+import { LoadDemoButton } from "@/components/load-demo-button"
 import { PageIntro } from "@/components/page-intro"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -503,11 +504,16 @@ export function LogView({
               <CardTitle>Recently logged runs</CardTitle>
             </CardHeader>
             <CardContent>
-              {runs.length === 0 ? (
-                <div className="flex items-start gap-3 py-2 text-sm text-muted-foreground">
-                  <Inbox className="mt-0.5 size-4 shrink-0" />
-                  Nothing recorded yet. Log a Product Demo with an unmet
-                  prerequisite to see the exception interaction, then submit.
+                  {runs.length === 0 ? (
+                <div className="space-y-3 py-2 text-sm text-muted-foreground">
+                  <div className="flex items-start gap-3">
+                    <Inbox className="mt-0.5 size-4 shrink-0" />
+                    <p>
+                      Nothing recorded yet. Load the interview dataset, or log a
+                      Product Demo with an unmet prerequisite.
+                    </p>
+                  </div>
+                  <LoadDemoButton>Load interview dataset</LoadDemoButton>
                 </div>
               ) : (
                 <ul className="space-y-2">

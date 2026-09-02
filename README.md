@@ -26,13 +26,13 @@ npm test
 npm run lint
 ```
 
-SQLite lives at `data/playbook.sqlite` (gitignored). Delete it to re-seed Product Demo and a few open opportunities.
+SQLite lives at `data/playbook.sqlite` (gitignored). A fresh database seeds Product Demo plus the planted interview dataset so Config, Log, and Results are demo-ready. Delete the file to re-seed.
 
 ## Deploy on Vercel
 
 Vercel’s function filesystem is read-only except `/tmp`. Creating `data/playbook.sqlite` under `/var/task` fails with `ENOENT: mkdir '/var/task/data'`.
 
-On Vercel this app writes SQLite to `/tmp` so the site can boot. That file is per-instance and not durable.
+On Vercel this app writes SQLite to `/tmp` and loads the demo dataset when the file is empty. That store is per-instance and not durable.
 
 For shared persistence, create a [Turso](https://turso.tech) database and set:
 
@@ -70,3 +70,7 @@ On **Log → Import**, use:
 | 8 | Confidence and statistical tests | Done |
 | 9 | Playbook Review Queue | Done |
 | 10 | Expanded analysis, stage-safe | Done |
+| 11 | Selective AI | Not started |
+| 12 | Portfolio polish | In progress — demo seed, evidence list, loading/error states, spec docs |
+
+See `docs/product-spec.md`, `docs/implementation-plan.md`, and `docs/decisions.md`.

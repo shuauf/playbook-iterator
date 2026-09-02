@@ -6,6 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 
 import "./globals.css"
 
+function persistenceCaption() {
+  if (process.env.TURSO_DATABASE_URL || process.env.PLAYBOOK_DB_URL || process.env.LIBSQL_URL) {
+    return "Shared database"
+  }
+  if (process.env.VERCEL) return "Demo dataset on this instance"
+  return "Local SQLite"
+}
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -36,7 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <TooltipProvider>
-          <AppShell>{children}</AppShell>
+          <AppShell storageLabel={persistenceCaption()}>{children}</AppShell>
         </TooltipProvider>
       </body>
     </html>

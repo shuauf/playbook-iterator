@@ -115,6 +115,17 @@ export type PrerequisiteFinding = {
   recordIds: string[]
 }
 
+export type FindingEvidenceRow = {
+  runId: string
+  opportunityId: string
+  opportunityName: string
+  account: string
+  status: AnalysisOpportunity["status"]
+  met: boolean
+  reasonLabel: string | null
+  runAtMs: number
+}
+
 export type PlayOutcomeRow = {
   playId: string
   playName: string

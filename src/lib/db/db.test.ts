@@ -86,10 +86,16 @@ describe("database location", () => {
     })
   })
 
-  it("falls back to the os temp dir when the sqlite parent cannot be created", () => {
-    const result = ensureWritableSqlitePath(
-      path.join("/proc", "playbook-iterator-readonly", "playbook.sqlite")
-    )
-    expect(result).toBe(path.join(os.tmpdir(), "playbook.sqlite"))
+  it("falls back to the os temp dir when the sqlite parent cannot be created", async () => {
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises")
+    const dir = await mkdtemp(path.join(os.tmpdir(), "db-readonly-"))
+    const blocker = path.join(dir, "not-a-directory")
+    await writeFile(blocker, "x")
+    try {
+      const result = ensureWritableSqlitePath(path.join(blocker, "playbook.sqlite"))
+      expect(result).toBe(path.join(os.tmpdir(), "playbook.sqlite"))
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

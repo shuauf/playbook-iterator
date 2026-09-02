@@ -6,7 +6,7 @@ import { createClient, type Client, type Config } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 
 import { schema } from "@/lib/db/schema"
-import { seedIfEmpty } from "@/lib/db/seed"
+import { bootstrapPlaybook } from "@/lib/db/seed-demo"
 import type { PlaybookDb } from "@/lib/db/types"
 
 export type { PlaybookDb } from "@/lib/db/types"
@@ -238,7 +238,7 @@ export async function getDb(): Promise<PlaybookDb> {
   if (!globalForDb.playbook) {
     globalForDb.playbook = (async () => {
       const opened = await openPlaybookConnection()
-      await seedIfEmpty(opened.db)
+      await bootstrapPlaybook(opened.db)
       await backfillPrerequisiteVersions(opened.client)
       return opened
     })()

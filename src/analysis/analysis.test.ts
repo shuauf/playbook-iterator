@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { analyze } from "@/analysis/engine"
+import { analyze, evidenceForFinding } from "@/analysis/engine"
 import { buildPlantedCorpus, findingByPrereq } from "@/analysis/planted"
 import { DEFAULT_THRESHOLDS } from "@/analysis/thresholds"
 
@@ -99,6 +99,18 @@ describe("analysis engine", () => {
     expect(finding?.win.nMet).toBe(25)
     expect(finding?.win.nUnmet).toBe(20)
     expect(finding?.recommendation).toBe("reclassify")
+  })
+
+  it("lists inspectable records for a finding, unmet first", () => {
+    const finding = findingByPrereq(result, "product-demo", "pd-business-problem")
+    if (!finding) throw new Error("missing business-problem finding")
+    const rows = evidenceForFinding(finding, corpus)
+    expect(rows.length).toBe(finding.recordIds.length)
+    expect(rows.filter((row) => !row.met)).toHaveLength(finding.nUnmet)
+    expect(rows.filter((row) => row.met)).toHaveLength(finding.nMet)
+    expect(rows[0]?.met).toBe(false)
+    expect(rows[0]?.reasonLabel).toBeTruthy()
+    expect(rows[0]?.opportunityName).toBeTruthy()
   })
 
   it("updates recommendation cards when thresholds change", () => {

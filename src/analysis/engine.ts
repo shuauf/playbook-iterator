@@ -14,6 +14,7 @@ import type {
   AnalysisResult,
   AnalysisRun,
   CycleComparison,
+  FindingEvidenceRow,
   IntentExceptionRow,
   PlayOutcomeRow,
   PrerequisiteFinding,
@@ -644,6 +645,36 @@ function stageNote(stage: string) {
     return "Earlier-stage baseline. Not comparable to Prove-stage plays."
   }
   return "Within-stage description only. Do not rank against plays from another stage."
+}
+
+export function evidenceForFinding(
+  finding: PrerequisiteFinding,
+  input: AnalysisInput
+): FindingEvidenceRow[] {
+  const oppById = new Map(input.opportunities.map((item) => [item.id, item]))
+  const runById = new Map(input.runs.map((item) => [item.id, item]))
+  const rows: FindingEvidenceRow[] = []
+
+  for (const runId of finding.recordIds) {
+    const run = runById.get(runId)
+    if (!run) continue
+    const opp = oppById.get(run.opportunityId)
+    const check = run.checks.find((item) => item.prerequisiteId === finding.prerequisiteId)
+    rows.push({
+      runId: run.id,
+      opportunityId: run.opportunityId,
+      opportunityName: opp?.name ?? run.opportunityId,
+      account: opp?.account ?? "",
+      status: opp?.status ?? "open",
+      met: check?.met ?? true,
+      reasonLabel: check?.reasonLabel ?? null,
+      runAtMs: run.runAtMs,
+    })
+  }
+
+  return rows.sort(
+    (a, b) => Number(a.met) - Number(b.met) || b.runAtMs - a.runAtMs || a.opportunityName.localeCompare(b.opportunityName)
+  )
 }
 
 export function toAnalysisInput(data: {

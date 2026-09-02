@@ -106,7 +106,7 @@ export function ConfigView({
       <PageIntro kicker="Config" title="The living playbook">
         This is how the team currently intends to work. Create plays, edit the
         current definition, and retire rules that no longer belong. Edits persist
-        in the local workspace database. Past wording is kept in history so later
+        in the workspace database. Past wording is kept in history so later
         play runs will not be rewritten.
       </PageIntro>
 

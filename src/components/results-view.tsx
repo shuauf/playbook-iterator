@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useMemo, useState } from "react"
 import { ArrowRight, Info } from "lucide-react"
 
+import { LoadDemoButton } from "@/components/load-demo-button"
 import { EvidenceBadge, FindingBadge, IntentBadge } from "@/components/finding-badge"
 import { PageIntro } from "@/components/page-intro"
 import { buttonVariants } from "@/components/ui/button"
@@ -24,10 +25,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { analyze } from "@/analysis/engine"
+import { analyze, evidenceForFinding } from "@/analysis/engine"
 import { DEFAULT_THRESHOLDS } from "@/analysis/thresholds"
-import type { AnalysisFilters, AnalysisInput, PrerequisiteFinding, Thresholds } from "@/analysis/types"
+import type { AnalysisFilters, AnalysisInput, FindingEvidenceRow, PrerequisiteFinding, Thresholds } from "@/analysis/types"
 import { formatDays, pct } from "@/lib/format"
+import { formatDisplayDate } from "@/lib/dates"
 import { SEGMENTS, TYPICAL_STAGES } from "@/lib/playbook/types"
 import { cn } from "@/lib/utils"
 
@@ -68,12 +70,17 @@ export function ResultsView({ input }: { input: AnalysisInput }) {
     return (
       <div>
         <PageIntro kicker="Results" title="Start with the decisions">
-          Log play runs and close a few opportunities, or load the interview dataset
-          from the Log tab, before this page can show comparison-group math.
+          Log play runs and close a few opportunities, or load the interview dataset,
+          before this page can show comparison-group math.
         </PageIntro>
         <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No play runs yet. Results stay empty until there is something to compare.
+          <CardContent className="space-y-4 py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              No play runs yet. Results stay empty until there is something to compare.
+            </p>
+            <div className="flex justify-center">
+              <LoadDemoButton>Load interview dataset</LoadDemoButton>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -330,9 +337,7 @@ export function ResultsView({ input }: { input: AnalysisInput }) {
                 <Info className="mt-0.5 size-4 shrink-0" />
                 {selected.limitation}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {selected.recordIds.length} underlying play run{selected.recordIds.length === 1 ? "" : "s"} produced this finding.
-              </p>
+              <EvidenceList finding={selected} input={input} />
               <Link href={`/config?play=${selected.playId}`} className={buttonVariants()}>
                 Open this play in Config
                 <ArrowRight data-icon="inline-end" />
@@ -533,6 +538,51 @@ export function ResultsView({ input }: { input: AnalysisInput }) {
         </Card>
       </section>
     </div>
+  )
+}
+
+function EvidenceList({
+  finding,
+  input,
+}: {
+  finding: PrerequisiteFinding
+  input: AnalysisInput
+}) {
+  const rows = evidenceForFinding(finding, input)
+  const unmet = rows.filter((row) => !row.met).length
+  return (
+    <div>
+      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Underlying records
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {rows.length} play run{rows.length === 1 ? "" : "s"} · {unmet} unmet · {rows.length - unmet}{" "}
+        met. Unmet runs are listed first.
+      </p>
+      {rows.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">No matching runs in this filter.</p>
+      ) : (
+        <ul className="mt-2 max-h-64 space-y-1.5 overflow-auto rounded-lg border bg-background/70 p-2">
+          {rows.map((row) => (
+            <EvidenceRowItem key={row.runId} row={row} />
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function EvidenceRowItem({ row }: { row: FindingEvidenceRow }) {
+  return (
+    <li className="rounded-md border bg-card px-2.5 py-2">
+      <p className="text-sm font-medium">{row.opportunityName}</p>
+      <p className="text-xs text-muted-foreground">
+        {row.account} · {row.status} · {formatDisplayDate(new Date(row.runAtMs))}
+      </p>
+      <p className="mt-1 text-xs">
+        {row.met ? "Met" : `Unmet${row.reasonLabel ? ` · ${row.reasonLabel}` : ""}`}
+      </p>
+    </li>
   )
 }
 
