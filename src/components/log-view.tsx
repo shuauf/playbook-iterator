@@ -25,12 +25,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  exceptionReasons,
   importPreviewRows,
   opportunities,
   outcomeQueue,
-  plays,
 } from "@/data/sample"
+import type { ExceptionReasonDto, PlayDto } from "@/lib/playbook/types"
 import { cn } from "@/lib/utils"
 
 type CheckState = {
@@ -48,13 +47,18 @@ type SessionRun = {
   at: string
 }
 
-const activePlays = plays.filter((play) => play.status === "active")
-
-export function LogView() {
+export function LogView({
+  plays,
+  reasons,
+}: {
+  plays: PlayDto[]
+  reasons: ExceptionReasonDto[]
+}) {
+  const activePlays = plays.filter((play) => play.status === "active")
   const [section, setSection] = useState("record")
   const [query, setQuery] = useState("")
   const [opportunityId, setOpportunityId] = useState(opportunities[0].id)
-  const [playId, setPlayId] = useState("product-demo")
+  const [playId, setPlayId] = useState(activePlays[0]?.id ?? "")
   const [checks, setChecks] = useState<Record<string, CheckState>>({})
   const [error, setError] = useState<string | null>(null)
   const [sessionRuns, setSessionRuns] = useState<SessionRun[]>([])
@@ -64,6 +68,9 @@ export function LogView() {
 
   const opportunity = opportunities.find((item) => item.id === opportunityId)
   const play = activePlays.find((item) => item.id === playId) ?? activePlays[0]
+  const currentPrereqs =
+    play?.prerequisites.filter((item) => item.status === "active") ?? []
+  const activeReasons = reasons.filter((item) => item.status === "active")
 
   const filteredOpps = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -91,7 +98,8 @@ export function LogView() {
   }
 
   function recordRun() {
-    const unmet = play.prerequisites.filter((item) => !getCheck(item.id).met)
+    if (!play) return
+    const unmet = currentPrereqs.filter((item) => !getCheck(item.id).met)
     const missingReason = unmet.find((item) => !getCheck(item.id).reason)
     if (missingReason) {
       setError(
@@ -182,7 +190,12 @@ export function LogView() {
                   <CardTitle>Sales play</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-1.5">
-                  {activePlays.map((item) => (
+                  {activePlays.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No active plays. Define one in Config first.
+                    </p>
+                  ) : (
+                    activePlays.map((item) => (
                     <button
                       key={item.id}
                       type="button"
@@ -200,15 +213,17 @@ export function LogView() {
                     >
                       {item.name}
                     </button>
-                  ))}
+                    ))
+                  )}
                 </CardContent>
               </Card>
             </div>
 
+            {play ? (
             <Card>
               <CardHeader className="border-b">
                 <p className="text-xs text-muted-foreground">
-                  Current playbook version · {play.typicalStage}
+                  Current playbook · {play.typicalStage} · v{play.definitionVersion}
                 </p>
                 <CardTitle className="font-heading text-2xl">
                   {play.name}
@@ -222,7 +237,13 @@ export function LogView() {
                   We know this is outside the current playbook, and this is why
                   we are doing it — only when a box is cleared.
                 </p>
-                {play.prerequisites.map((item) => {
+                {currentPrereqs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    This play has no active prerequisites. Add them in Config
+                    before logging a run.
+                  </p>
+                ) : null}
+                {currentPrereqs.map((item) => {
                   const state = getCheck(item.id)
                   return (
                     <div
@@ -272,7 +293,7 @@ export function LogView() {
                                 <SelectValue placeholder="Choose why this is unmet" />
                               </SelectTrigger>
                               <SelectContent>
-                                {exceptionReasons.map((reason) => (
+                                {activeReasons.map((reason) => (
                                   <SelectItem key={reason.id} value={reason.id}>
                                     {reason.label}
                                   </SelectItem>
@@ -329,6 +350,13 @@ export function LogView() {
                 </div>
               </CardContent>
             </Card>
+            ) : (
+            <Card>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                Config has no active sales play yet, so there is nothing to log.
+              </CardContent>
+            </Card>
+            )}
           </div>
 
           <Card>

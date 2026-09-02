@@ -53,8 +53,9 @@ export function ResultsView() {
       <PageIntro kicker="Results" title="Start with the decisions">
         The review queue is the product. Charts come after a finding, not
         before it. Every comparison below is within a play, and every number
-        carries its sample size. Open opportunities stay visible in usage views
-        and are excluded from win-rate math.
+        carries its sample size.         Open opportunities stay visible in usage views
+        and are excluded from win-rate math. Findings on this tab are still
+        illustrative sample output until play runs are stored.
       </PageIntro>
 
       <div className="mb-5 flex flex-wrap gap-2">

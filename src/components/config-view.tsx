@@ -1,137 +1,113 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
-import {
-  ChevronDown,
-  ChevronUp,
-  History,
-  MoreHorizontal,
-  Plus,
-} from "lucide-react"
+import { useMemo, useState, useTransition } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Plus } from "lucide-react"
 
-import { IntentBadge } from "@/components/finding-badge"
+import { PlayEditor } from "@/components/config-play-editor"
 import { PageIntro } from "@/components/page-intro"
 import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { exceptionReasons, plays, type Play } from "@/data/sample"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  createPlayAction,
+  createReasonAction,
+  setReasonStatusAction,
+  updateReasonAction,
+} from "@/lib/playbook/actions"
+import {
+  TYPICAL_STAGES,
+  type ExceptionReasonDto,
+  type PlayDto,
+} from "@/lib/playbook/types"
 import { cn } from "@/lib/utils"
 
-export function ConfigView() {
+type ActionResult = { ok: true; id?: string } | { ok: false; error: string }
+
+export function ConfigView({
+  plays,
+  reasons,
+}: {
+  plays: PlayDto[]
+  reasons: ExceptionReasonDto[]
+}) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const requested = searchParams.get("play")
   const [statusFilter, setStatusFilter] = useState<"active" | "all">("active")
-  const [selectedId, setSelectedId] = useState(
-    requested && plays.some((play) => play.id === requested)
-      ? requested
-      : "product-demo"
-  )
-  const [drafts, setDrafts] = useState<Play[]>(plays)
-  const [historyOpen, setHistoryOpen] = useState(true)
+  const [userSelectedId, setUserSelectedId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    typicalStage: "Evaluate",
+    purpose: "",
+  })
+  const [newReason, setNewReason] = useState({ label: "", description: "" })
+  const [showRetiredReasons, setShowRetiredReasons] = useState(false)
+  const [pending, startTransition] = useTransition()
 
   const visiblePlays = useMemo(
     () =>
-      drafts.filter((play) =>
+      plays.filter((play) =>
         statusFilter === "active" ? play.status === "active" : true
       ),
-    [drafts, statusFilter]
+    [plays, statusFilter]
   )
 
-  const selected =
-    drafts.find((play) => play.id === selectedId) ?? drafts[0]
+  const selectedId =
+    [userSelectedId, requested].find(
+      (id) => id && plays.some((play) => play.id === id)
+    ) ??
+    visiblePlays[0]?.id ??
+    plays[0]?.id ??
+    null
 
-  function flash(message: string) {
-    setNotice(message)
-  }
+  const selected = plays.find((play) => play.id === selectedId) ?? null
+  const activeReasons = reasons.filter((item) => item.status === "active")
+  const retiredReasons = reasons.filter((item) => item.status === "retired")
 
-  function movePrerequisite(index: number, direction: -1 | 1) {
-    const nextIndex = index + direction
-    if (!selected || nextIndex < 0 || nextIndex >= selected.prerequisites.length) {
-      return
-    }
-    setDrafts((current) =>
-      current.map((play) => {
-        if (play.id !== selected.id) return play
-        const prerequisites = [...play.prerequisites]
-        const [item] = prerequisites.splice(index, 1)
-        prerequisites.splice(nextIndex, 0, item)
-        return { ...play, prerequisites }
-      })
-    )
-  }
-
-  function toggleIntent(id: string) {
-    if (!selected) return
-    setDrafts((current) =>
-      current.map((play) => {
-        if (play.id !== selected.id) return play
-        return {
-          ...play,
-          prerequisites: play.prerequisites.map((item) =>
-            item.id === id
-              ? {
-                  ...item,
-                  intent:
-                    item.intent === "required" ? "recommended" : "required",
-                }
-              : item
-          ),
-        }
-      })
-    )
-    flash(
-      "Intent changed in this session only. A real save would write a new playbook version and leave past runs on the old definition."
-    )
-  }
-
-  function retirePlay() {
-    if (!selected) return
-    setDrafts((current) =>
-      current.map((play) =>
-        play.id === selected.id ? { ...play, status: "retired" } : play
-      )
-    )
-    flash(
-      `${selected.name} marked retired in this session. Historical runs would remain attached to the definition used when they were logged.`
-    )
-  }
-
-  function addPrerequisite() {
-    if (!selected) return
-    const id = `new-${Date.now()}`
-    setDrafts((current) =>
-      current.map((play) => {
-        if (play.id !== selected.id) return play
-        return {
-          ...play,
-          prerequisites: [
-            ...play.prerequisites,
-            {
-              id,
-              text: "New prerequisite — edit this copy",
-              intent: "recommended",
-            },
-          ],
-        }
-      })
-    )
-    flash("Prerequisite added locally. Persistence and versioning come in a later phase.")
+  function run(
+    action: () => Promise<ActionResult>,
+    success: string,
+    onOk?: (id?: string) => void
+  ) {
+    startTransition(async () => {
+      const result = await action()
+      if (!result.ok) {
+        setNotice(result.error)
+        return
+      }
+      setNotice(success)
+      onOk?.(result.id)
+    })
   }
 
   return (
     <div>
       <PageIntro kicker="Config" title="The living playbook">
-        This is how the team currently intends to work — not an admin console.
-        Choose a play, inspect its prerequisites, and treat required versus
-        recommended as a hypothesis you can later test in Results.
+        This is how the team currently intends to work. Create plays, edit the
+        current definition, and retire rules that no longer belong. Edits persist
+        in the local workspace database. Past wording is kept in history so later
+        play runs will not be rewritten.
       </PageIntro>
 
       {notice ? (
@@ -170,172 +146,75 @@ export function ConfigView() {
             </div>
           </CardHeader>
           <CardContent className="px-2 py-2">
-            <ul className="flex flex-col">
-              {visiblePlays.map((play) => (
-                <li key={play.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedId(play.id)
-                      setNotice(null)
-                    }}
-                    className={cn(
-                      "flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2.5 text-left transition-colors",
-                      selected.id === play.id
-                        ? "bg-[oklch(0.95_0.025_175)]"
-                        : "hover:bg-muted/70"
-                    )}
-                  >
-                    <span>
-                      <span className="block text-sm font-medium">{play.name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {play.typicalStage} · {play.prerequisites.length}{" "}
-                        prerequisites
+            {visiblePlays.length === 0 ? (
+              <p className="px-2.5 py-6 text-center text-sm text-muted-foreground">
+                {plays.length === 0
+                  ? "No plays yet. Create the first standard."
+                  : "No active plays. Switch to All to see retired ones."}
+              </p>
+            ) : (
+              <ul className="flex flex-col">
+                {visiblePlays.map((play) => (
+                  <li key={play.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserSelectedId(play.id)
+                        setNotice(null)
+                        router.replace(`/config?play=${play.id}`)
+                      }}
+                      className={cn(
+                        "flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2.5 text-left transition-colors",
+                        selected?.id === play.id
+                          ? "bg-[oklch(0.95_0.025_175)]"
+                          : "hover:bg-muted/70"
+                      )}
+                    >
+                      <span>
+                        <span className="block text-sm font-medium">{play.name}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {play.typicalStage} ·{" "}
+                          {
+                            play.prerequisites.filter(
+                              (item) => item.status === "active"
+                            ).length
+                          }{" "}
+                          prerequisites
+                        </span>
                       </span>
-                    </span>
-                    {play.status === "retired" ? (
-                      <Badge variant="secondary">Retired</Badge>
-                    ) : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <Button variant="outline" className="mt-2 w-full" onClick={() => flash("Creating a play will be a Config action in Phase 2. This shell keeps the playbook list as the primary object.")}>
+                      {play.status === "retired" ? (
+                        <Badge variant="secondary">Retired</Badge>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Button
+              variant="outline"
+              className="mt-2 w-full"
+              onClick={() => setCreateOpen(true)}
+            >
               <Plus data-icon="inline-start" />
               New play
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-card">
-          <CardHeader className="border-b">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Typical stage</p>
-                <CardTitle className="font-heading text-2xl">
-                  {selected.name}
-                </CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {selected.typicalStage}
-                  {selected.status === "retired" ? " · Retired" : " · Active"}
-                </p>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label="Play actions"
-                  className={buttonVariants({ variant: "outline", size: "icon" })}
-                >
-                  <MoreHorizontal />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
-                    View history
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      flash("Duplicate will copy this play’s current prerequisites into a new play.")
-                    }
-                  >
-                    Duplicate play
-                  </DropdownMenuItem>
-                  {selected.status === "active" ? (
-                    <DropdownMenuItem onClick={retirePlay}>
-                      Retire play
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <section>
-              <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Purpose
-              </h2>
-              <p className="mt-2 text-[15px] leading-relaxed">{selected.purpose}</p>
-            </section>
-
-            <section>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  Prerequisites
-                </h2>
-                <Button size="sm" variant="outline" onClick={addPrerequisite}>
-                  <Plus data-icon="inline-start" />
-                  Add
-                </Button>
-              </div>
-              <ol className="space-y-2">
-                {selected.prerequisites.map((item, index) => (
-                  <li
-                    key={item.id}
-                    className="flex items-start gap-2 rounded-xl border border-border/80 bg-background/60 p-3"
-                  >
-                    <div className="flex flex-col">
-                      <button
-                        type="button"
-                        aria-label="Move up"
-                        className="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
-                        disabled={index === 0}
-                        onClick={() => movePrerequisite(index, -1)}
-                      >
-                        <ChevronUp className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Move down"
-                        className="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
-                        disabled={index === selected.prerequisites.length - 1}
-                        onClick={() => movePrerequisite(index, 1)}
-                      >
-                        <ChevronDown className="size-3.5" />
-                      </button>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm leading-snug">{item.text}</p>
-                      <button
-                        type="button"
-                        className="mt-2"
-                        onClick={() => toggleIntent(item.id)}
-                      >
-                        <IntentBadge intent={item.intent} />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Click a required/recommended badge to flip intent. Reorder with
-                the arrows. In production, material edits write a new version.
-              </p>
-            </section>
-
-            <section className="rounded-xl border border-dashed border-border bg-muted/40 p-3">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between text-left"
-                onClick={() => setHistoryOpen((open) => !open)}
-              >
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  <History className="size-4" />
-                  History stays attached
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "size-4 text-muted-foreground transition-transform",
-                    historyOpen && "rotate-180"
-                  )}
-                />
-              </button>
-              {historyOpen ? (
-                <div className="mt-3 space-y-2 text-sm leading-relaxed text-muted-foreground">
-                  <p>{selected.lastMaterialChange}</p>
-                  <p>{selected.historyNote}</p>
-                </div>
-              ) : null}
-            </section>
-          </CardContent>
-        </Card>
+        {selected ? (
+          <PlayEditor
+            key={selected.id}
+            play={selected}
+            pending={pending}
+            run={run}
+          />
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-muted-foreground">
+              Create a sales play to define the current standard.
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="bg-card/80">
           <CardHeader className="border-b">
@@ -346,29 +225,254 @@ export function ConfigView() {
             </p>
           </CardHeader>
           <CardContent className="space-y-2">
-            {exceptionReasons.map((reason) => (
-              <div
+            {activeReasons.map((reason) => (
+              <ReasonEditor
                 key={reason.id}
-                className="rounded-lg border border-border/70 bg-background/70 px-3 py-2"
-              >
-                <p className="text-sm font-medium">{reason.label}</p>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {reason.description}
-                </p>
-              </div>
+                reason={reason}
+                pending={pending}
+                onSave={(input) =>
+                  run(
+                    () => updateReasonAction(reason.id, input),
+                    "Exception reason saved."
+                  )
+                }
+                onRetire={() =>
+                  run(
+                    () => setReasonStatusAction(reason.id, "retired"),
+                    "Exception reason retired."
+                  )
+                }
+              />
             ))}
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() =>
-                flash("Reason taxonomy is versioned separately so old runs keep the label that was chosen.")
-              }
-            >
-              <Plus data-icon="inline-start" />
-              Add reason
-            </Button>
+            <div className="space-y-2 rounded-xl border border-dashed p-3">
+              <Label htmlFor="reason-label">Add a reason</Label>
+              <Input
+                id="reason-label"
+                value={newReason.label}
+                onChange={(event) =>
+                  setNewReason((current) => ({
+                    ...current,
+                    label: event.target.value,
+                  }))
+                }
+                placeholder="Label"
+              />
+              <Textarea
+                rows={2}
+                value={newReason.description}
+                onChange={(event) =>
+                  setNewReason((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="When this reason applies"
+              />
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={
+                  pending ||
+                  !newReason.label.trim() ||
+                  !newReason.description.trim()
+                }
+                onClick={() =>
+                  run(
+                    () => createReasonAction(newReason),
+                    "Exception reason added.",
+                    () => setNewReason({ label: "", description: "" })
+                  )
+                }
+              >
+                <Plus data-icon="inline-start" />
+                Add reason
+              </Button>
+            </div>
+            {retiredReasons.length > 0 ? (
+              <div>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                  onClick={() => setShowRetiredReasons((open) => !open)}
+                >
+                  {showRetiredReasons ? "Hide" : "Show"} retired reasons (
+                  {retiredReasons.length})
+                </button>
+                {showRetiredReasons
+                  ? retiredReasons.map((reason) => (
+                      <div
+                        key={reason.id}
+                        className="mt-2 flex items-start justify-between gap-2 rounded-lg border border-dashed px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{reason.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {reason.description}
+                          </p>
+                        </div>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() =>
+                            run(
+                              () => setReasonStatusAction(reason.id, "active"),
+                              "Exception reason reactivated."
+                            )
+                          }
+                        >
+                          Reactivate
+                        </Button>
+                      </div>
+                    ))
+                  : null}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
+      </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New sales play</DialogTitle>
+            <DialogDescription>
+              Name the activity, the stage it usually belongs to, and why the
+              team runs it. Add prerequisites after it exists.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div>
+              <Label htmlFor="new-play-name">Name</Label>
+              <Input
+                id="new-play-name"
+                className="mt-1"
+                value={createForm.name}
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                placeholder="Architecture Deep Dive"
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-play-stage">Typical stage</Label>
+              <Select
+                value={createForm.typicalStage}
+                onValueChange={(value) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    typicalStage: String(value),
+                  }))
+                }
+              >
+                <SelectTrigger id="new-play-stage" className="mt-1 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPICAL_STAGES.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {stage}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="new-play-purpose">Purpose</Label>
+              <Textarea
+                id="new-play-purpose"
+                className="mt-1"
+                rows={4}
+                value={createForm.purpose}
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    purpose: event.target.value,
+                  }))
+                }
+                placeholder="When should an SE run this play, and what is it for?"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                pending || !createForm.name.trim() || !createForm.purpose.trim()
+              }
+              onClick={() =>
+                run(
+                  () => createPlayAction(createForm),
+                  "Play created. Add prerequisites to make it runnable.",
+                  (id) => {
+                    setCreateOpen(false)
+                    setCreateForm({
+                      name: "",
+                      typicalStage: "Evaluate",
+                      purpose: "",
+                    })
+                    if (id) {
+                      setUserSelectedId(id)
+                      router.replace(`/config?play=${id}`)
+                    }
+                  }
+                )
+              }
+            >
+              Create play
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function ReasonEditor({
+  reason,
+  pending,
+  onSave,
+  onRetire,
+}: {
+  reason: ExceptionReasonDto
+  pending: boolean
+  onSave: (input: { label: string; description: string }) => void
+  onRetire: () => void
+}) {
+  const [label, setLabel] = useState(reason.label)
+  const [description, setDescription] = useState(reason.description)
+  const dirty = label !== reason.label || description !== reason.description
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border/70 bg-background/70 px-3 py-2">
+      <Input
+        value={label}
+        onChange={(event) => setLabel(event.target.value)}
+        aria-label="Reason label"
+      />
+      <Textarea
+        rows={2}
+        value={description}
+        onChange={(event) => setDescription(event.target.value)}
+        aria-label="Reason description"
+      />
+      <div className="flex justify-end gap-1">
+        {dirty ? (
+          <Button
+            size="xs"
+            disabled={pending}
+            onClick={() => onSave({ label, description })}
+          >
+            Save
+          </Button>
+        ) : null}
+        <Button size="xs" variant="ghost" disabled={pending} onClick={onRetire}>
+          Retire
+        </Button>
       </div>
     </div>
   )

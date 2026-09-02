@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-2 self-start rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
               <span className="size-1.5 rounded-full bg-[oklch(0.55_0.12_145)]" />
-              Phase 1 shell · nothing is saved yet
+              Config is live · local SQLite
             </div>
           </div>
 
@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Exceptions are decisions, not automatic mistakes. The playbook is a
             set of hypotheses.
           </p>
-          <p>Northstar SE · synthetic sample data</p>
+          <p>Northstar SE · Config persists locally</p>
         </div>
       </footer>
     </div>

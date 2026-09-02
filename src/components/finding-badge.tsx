@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import type { FindingLabel, PrerequisiteIntent } from "@/data/sample"
+import type { FindingLabel } from "@/data/sample"
+import type { PrerequisiteIntent } from "@/lib/playbook/types"
 
 const findingStyles: Record<
   FindingLabel,
