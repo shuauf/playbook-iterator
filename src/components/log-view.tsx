@@ -22,7 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
   importPreviewRows,
@@ -129,19 +128,35 @@ export function LogView({
         exceptions that later connect to outcomes.
       </PageIntro>
 
-      <Tabs value={section} onValueChange={setSection}>
-        <TabsList variant="line" className="mb-5 w-full max-w-xl justify-start">
-          <TabsTrigger value="record">Record a play</TabsTrigger>
-          <TabsTrigger value="outcomes">
-            Outcomes queue
-            <Badge variant="secondary" className="ml-1.5">
-              {outcomeQueue.filter((item) => !resolvedQueue[item.id]).length}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="import">Import</TabsTrigger>
-        </TabsList>
+      <div className="mb-5 flex w-full max-w-xl gap-1 rounded-lg bg-muted p-0.5 text-sm">
+        {(
+          [
+            { id: "record", label: "Record a play" },
+            { id: "outcomes", label: "Outcomes queue" },
+            { id: "import", label: "Import" },
+          ] as const
+        ).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setSection(item.id)}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5",
+              section === item.id && "bg-card text-foreground shadow-sm"
+            )}
+          >
+            {item.label}
+            {item.id === "outcomes" ? (
+              <Badge variant="secondary">
+                {outcomeQueue.filter((entry) => !resolvedQueue[entry.id]).length}
+              </Badge>
+            ) : null}
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="record" className="space-y-6">
+      {section === "record" ? (
+        <div className="space-y-6">
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
             <div className="space-y-4">
               <Card>
@@ -255,13 +270,17 @@ export function LogView({
                           : "border-[oklch(0.82_0.08_70)] bg-[oklch(0.98_0.02_85)]"
                       )}
                     >
-                      <label className="flex cursor-pointer items-start gap-3">
+                      <button
+                        type="button"
+                        className="flex w-full cursor-pointer items-start gap-3 text-left"
+                        onClick={() => updateCheck(item.id, { met: !state.met })}
+                      >
                         <Checkbox
                           checked={state.met}
                           onCheckedChange={(checked) =>
                             updateCheck(item.id, { met: checked === true })
                           }
-                          className="mt-0.5"
+                          className="pointer-events-none mt-0.5"
                         />
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-center gap-2">
@@ -274,7 +293,7 @@ export function LogView({
                               : "Unmet — an exception is required"}
                           </span>
                         </span>
-                      </label>
+                      </button>
                       {!state.met ? (
                         <div className="mt-3 space-y-3 border-t border-[oklch(0.88_0.04_70)] pt-3">
                           <div>
@@ -396,9 +415,10 @@ export function LogView({
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      ) : null}
 
-        <TabsContent value="outcomes">
+      {section === "outcomes" ? (
           <div className="grid gap-4 lg:grid-cols-2">
             {(["advancement", "close"] as const).map((type) => {
               const items = outcomeQueue.filter((item) => item.type === type)
@@ -513,9 +533,9 @@ export function LogView({
               )
             })}
           </div>
-        </TabsContent>
+      ) : null}
 
-        <TabsContent value="import">
+      {section === "import" ? (
           <Card>
             <CardHeader className="border-b">
               <CardTitle>Administrative bulk import</CardTitle>
@@ -603,8 +623,7 @@ export function LogView({
               ) : null}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+      ) : null}
     </div>
   )
 }

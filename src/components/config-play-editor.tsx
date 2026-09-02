@@ -1,17 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronUp, History, MoreHorizontal, Plus } from "lucide-react"
+import { ChevronDown, ChevronUp, History, Plus } from "lucide-react"
 
 import { IntentBadge } from "@/components/finding-badge"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -73,7 +67,7 @@ export function PlayEditor({
   )
 
   return (
-    <Card className="bg-card">
+    <Card id="play-editor" className="bg-card scroll-mt-28">
       <CardHeader className="border-b">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -91,42 +85,31 @@ export function PlayEditor({
               {play.definitionVersion}
             </p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Play actions"
-              className={buttonVariants({ variant: "outline", size: "icon" })}
-            >
-              <MoreHorizontal />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
-                View history
-              </DropdownMenuItem>
-              {play.status === "active" ? (
-                <DropdownMenuItem
-                  onClick={() =>
-                    run(
-                      () => setPlayStatusAction(play.id, "retired"),
-                      `${draft.name || play.name} retired. Switch to All to see it again.`
-                    )
-                  }
-                >
-                  Retire play
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem
-                  onClick={() =>
-                    run(
-                      () => setPlayStatusAction(play.id, "active"),
-                      `${play.name} reactivated.`
-                    )
-                  }
-                >
-                  Reactivate play
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {play.status === "active" ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  run(
+                    () => setPlayStatusAction(play.id, "retired"),
+                    `${draft.name || play.name} retired. Switch to All to see it again.`
+                  )
+                }
+              >
+                Retire play
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  run(
+                    () => setPlayStatusAction(play.id, "active"),
+                    `${play.name} reactivated.`
+                  )
+                }
+              >
+                Reactivate
+              </Button>
+            )}
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

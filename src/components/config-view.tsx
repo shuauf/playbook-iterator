@@ -162,6 +162,11 @@ export function ConfigView({
                         setUserSelectedId(play.id)
                         setNotice(null)
                         router.replace(`/config?play=${play.id}`)
+                        requestAnimationFrame(() => {
+                          document
+                            .getElementById("play-editor")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                        })
                       }}
                       className={cn(
                         "flex w-full items-start justify-between gap-2 rounded-lg px-2.5 py-2.5 text-left transition-colors",

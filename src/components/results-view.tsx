@@ -101,12 +101,19 @@ export function ResultsView() {
             <button
               key={finding.id}
               type="button"
-              onClick={() => setSelectedId(finding.id)}
+              onClick={() => {
+                setSelectedId(finding.id)
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById("finding-evidence")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                })
+              }}
               className={cn(
                 "w-full rounded-xl border border-l-4 bg-card p-4 text-left shadow-[0_1px_0_rgba(28,25,23,0.03)] transition-colors",
                 accent[finding.label],
                 selectedId === finding.id
-                  ? "ring-1 ring-[oklch(0.75_0.05_175)]"
+                  ? "ring-2 ring-[oklch(0.55_0.07_175)]"
                   : "hover:bg-card/80"
               )}
             >
@@ -121,6 +128,16 @@ export function ResultsView() {
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 {finding.summary}
               </p>
+              {selectedId === finding.id ? (
+                <p className="mt-3 text-xs font-medium text-[oklch(0.38_0.06_175)]">
+                  Evidence is open in the panel
+                  <span className="xl:hidden"> below</span>.
+                </p>
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Open evidence
+                </p>
+              )}
             </button>
           ))}
           {visibleFindings.length === 0 ? (
@@ -132,7 +149,7 @@ export function ResultsView() {
           ) : null}
         </div>
 
-        <Card className="xl:sticky xl:top-36">
+        <Card id="finding-evidence" className="scroll-mt-28 xl:sticky xl:top-36">
           <CardHeader className="border-b">
             <FindingBadge label={selected.label} />
             <CardTitle className="font-heading text-xl leading-snug">
