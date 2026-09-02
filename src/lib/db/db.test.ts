@@ -7,7 +7,9 @@ import {
   defaultDbPath,
   ensureWritableSqlitePath,
   isReadOnlyDeployFs,
+  openPlaybookConnection,
   resolveDbConnection,
+  toRemoteLibsqlUrl,
 } from "@/lib/db"
 
 const KEYS = [
@@ -84,6 +86,21 @@ describe("database location", () => {
       url: "libsql://playbook.turso.io",
       authToken: "secret-token",
     })
+  })
+
+  it("requires an auth token for a remote Turso URL", async () => {
+    await expect(
+      openPlaybookConnection({ kind: "remote", url: "libsql://playbook.turso.io" })
+    ).rejects.toThrow(/TURSO_AUTH_TOKEN/)
+  })
+
+  it("converts libsql URLs to https for the Vercel HTTP client", () => {
+    expect(toRemoteLibsqlUrl("libsql://playbook-user.turso.io")).toBe(
+      "https://playbook-user.turso.io"
+    )
+    expect(toRemoteLibsqlUrl("https://playbook-user.turso.io")).toBe(
+      "https://playbook-user.turso.io"
+    )
   })
 
   it("falls back to the os temp dir when the sqlite parent cannot be created", async () => {

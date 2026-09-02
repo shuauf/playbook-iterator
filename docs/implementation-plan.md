@@ -13,12 +13,9 @@ Phases 1–10 of the original slice: clickable shell, persistent Config, logging
 
 ## Durable demo
 
-SQLite under `data/` locally. On Vercel, file SQLite cannot live under `/var/task`; the app uses `/tmp` and reseeds the demo on a cold instance. For shared persistence across instances, set:
+SQLite under `data/` locally. On Vercel, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. The app uses the libSQL HTTP client (`@libsql/client/web`) so serverless does not open a file under `/var/task`. `libsql://` URLs are converted to `https://`.
 
-```
-TURSO_DATABASE_URL=libsql://...
-TURSO_AUTH_TOKEN=...
-```
+If those variables are missing, SQLite falls back to `/tmp` and reseeds on a cold instance.
 
 ## Next (not this slice)
 

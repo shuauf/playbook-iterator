@@ -2,7 +2,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
-import { createClient, type Client, type Config } from "@libsql/client"
+import type { Client } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 
 import { schema } from "@/lib/db/schema"
@@ -163,6 +163,10 @@ export function resolveDbConnection(): DbConnection {
   }
 }
 
+export function toRemoteLibsqlUrl(url: string) {
+  return url.startsWith("libsql://") ? `https://${url.slice("libsql://".length)}` : url
+}
+
 export function ensureWritableSqlitePath(filePath: string) {
   const dir = path.dirname(filePath)
   try {
@@ -202,16 +206,32 @@ export async function backfillPrerequisiteVersions(client: Client) {
 }
 
 export async function ensureSchema(client: Client) {
-  await client.executeMultiple(CREATE_SQL)
+  try {
+    await client.executeMultiple(CREATE_SQL)
+  } catch {
+    for (const sql of CREATE_SQL.split(";").map((item) => item.trim()).filter(Boolean)) {
+      await client.execute(sql)
+    }
+  }
   await backfillPrerequisiteVersions(client)
 }
 
-function clientConfig(connection: DbConnection): Config {
+async function createPlaybookClient(connection: DbConnection): Promise<Client> {
   if (connection.kind === "remote") {
-    return { url: connection.url, authToken: connection.authToken }
+    if (!connection.authToken) {
+      throw new Error(
+        "TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL (or PLAYBOOK_DB_URL) is set."
+      )
+    }
+    const { createClient } = await import("@libsql/client/web")
+    return createClient({
+      url: toRemoteLibsqlUrl(connection.url),
+      authToken: connection.authToken,
+    })
   }
+  const { createClient } = await import("@libsql/client")
   const filePath = ensureWritableSqlitePath(connection.path)
-  return { url: `file:${filePath}` }
+  return createClient({ url: `file:${filePath}` })
 }
 
 export async function openPlaybookConnection(
@@ -220,7 +240,7 @@ export async function openPlaybookConnection(
   client: Client
   db: PlaybookDb
 }> {
-  const client = createClient(clientConfig(connection))
+  const client = await createPlaybookClient(connection)
   await ensureSchema(client)
   const db = drizzle(client, { schema })
   return { client, db }

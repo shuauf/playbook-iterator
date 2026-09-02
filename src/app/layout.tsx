@@ -8,7 +8,7 @@ import "./globals.css"
 
 function persistenceCaption() {
   if (process.env.TURSO_DATABASE_URL || process.env.PLAYBOOK_DB_URL || process.env.LIBSQL_URL) {
-    return "Shared database"
+    return "Shared Turso database"
   }
   if (process.env.VERCEL) return "Demo dataset on this instance"
   return "Local SQLite"

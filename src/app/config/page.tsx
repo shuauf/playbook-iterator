@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db"
 import { listPlays, listReasons } from "@/lib/playbook/repo"
 
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 export default async function ConfigPage() {
   const db = await getDb()

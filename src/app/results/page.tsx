@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db"
 import { loadAnalysisRecords } from "@/lib/ops/repo"
 
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 export default async function ResultsPage() {
   const db = await getDb()

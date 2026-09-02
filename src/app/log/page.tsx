@@ -4,6 +4,7 @@ import { listOutcomeQueue, listOpportunities, listPlayRuns } from "@/lib/ops/rep
 import { listPlays, listReasons } from "@/lib/playbook/repo"
 
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 export default async function LogPage() {
   const db = await getDb()

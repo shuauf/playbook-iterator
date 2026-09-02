@@ -12,6 +12,10 @@ The default seed was one play and four open opportunities. Results and the revie
 
 Vercel functions cannot `mkdir` under `/var/task`. Local SQLite goes to `/tmp` there so the app boots; that file is per-instance. Shared durability is a Turso/libSQL URL, not a bundled SQLite file. The demo dataset is reseeded on empty instances so a preview deploy is usable without Turso.
 
+## 2026-09-02 — Turso on Vercel uses HTTP, not a local file
+
+Vercel env vars `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` select a remote libSQL database. The serverless function uses `@libsql/client/web` and rewrites `libsql://` to `https://` so native SQLite is not required for production. File SQLite remains the local-dev default.
+
 ## 2026-09-02 — AI stays off
 
 The deterministic loop, evidence list, and demo seed come before any generated summary. AI must not compute its own metrics.

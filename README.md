@@ -32,14 +32,7 @@ SQLite lives at `data/playbook.sqlite` (gitignored). A fresh database seeds Prod
 
 Vercel’s function filesystem is read-only except `/tmp`. Creating `data/playbook.sqlite` under `/var/task` fails with `ENOENT: mkdir '/var/task/data'`.
 
-On Vercel this app writes SQLite to `/tmp` and loads the demo dataset when the file is empty. That store is per-instance and not durable.
-
-For shared persistence, create a [Turso](https://turso.tech) database and set:
-
-```
-TURSO_DATABASE_URL=libsql://your-db.turso.io
-TURSO_AUTH_TOKEN=...
-```
+On Vercel this app uses `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` over HTTP (`libsql://` is converted to `https://`). Create those variables in the Vercel project (Turso integration does this). File SQLite under `/tmp` is only the fallback when those variables are missing; that store is per-instance and not durable.
 
 ## Interview dataset
 
