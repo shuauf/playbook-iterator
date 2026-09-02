@@ -5,8 +5,10 @@ import {
   exceptionReasons,
   playbookEvents,
   plays,
+  prerequisiteVersions,
   prerequisites,
 } from "@/lib/db/schema"
+import { newId } from "@/lib/ids"
 import type {
   ExceptionReasonDto,
   PlayDto,
@@ -53,12 +55,21 @@ async function bumpPlay(
   })
 }
 
+async function currentVersionsByPrerequisite(db: PlaybookDb) {
+  const versions = await db
+    .select()
+    .from(prerequisiteVersions)
+    .where(eq(prerequisiteVersions.isCurrent, true))
+  return new Map(versions.map((row) => [row.prerequisiteId, row]))
+}
+
 export async function listPlays(db: PlaybookDb): Promise<PlayDto[]> {
   const playRows = await db.select().from(plays).orderBy(asc(plays.createdAt))
   const prereqRows = await db
     .select()
     .from(prerequisites)
     .orderBy(asc(prerequisites.sortOrder), asc(prerequisites.createdAt))
+  const currentVersions = await currentVersionsByPrerequisite(db)
   const eventRows = await db
     .select()
     .from(playbookEvents)
@@ -73,16 +84,19 @@ export async function listPlays(db: PlaybookDb): Promise<PlayDto[]> {
     definitionVersion: play.definitionVersion,
     prerequisites: prereqRows
       .filter((item) => item.playId === play.id)
-      .map(
-        (item): PrerequisiteDto => ({
+      .map((item): PrerequisiteDto => {
+        const version = currentVersions.get(item.id)
+        return {
           id: item.id,
           playId: item.playId,
-          text: item.text,
-          intent: item.intent as PrerequisiteIntent,
+          text: version?.text ?? item.text,
+          intent: (version?.intent ?? item.intent) as PrerequisiteIntent,
           sortOrder: item.sortOrder,
           status: item.status as PlayStatus,
-        })
-      ),
+          currentVersionId: version?.id ?? `${item.id}-v1`,
+          version: version?.version ?? 1,
+        }
+      }),
     history: eventRows
       .filter((item) => item.playId === play.id)
       .slice(0, 12)
@@ -233,6 +247,16 @@ export async function addPrerequisite(
     createdAt: now,
     updatedAt: now,
   })
+  await db.insert(prerequisiteVersions).values({
+    id: newId("prv"),
+    prerequisiteId: id,
+    text,
+    intent: input.intent,
+    sortOrder: siblings.length,
+    version: 1,
+    isCurrent: true,
+    createdAt: now,
+  })
   await bumpPlay(
     db,
     playId,
@@ -265,16 +289,45 @@ export async function updatePrerequisite(
       ? requiredText(input.text, "Prerequisite")
       : current.text
   const intent = input.intent ?? (current.intent as PrerequisiteIntent)
+  const materialChange = text !== current.text || intent !== current.intent
 
   await db
     .update(prerequisites)
     .set({ text, intent, updatedAt: now })
     .where(eq(prerequisites.id, prerequisiteId))
 
+  if (materialChange) {
+    const versions = await db
+      .select()
+      .from(prerequisiteVersions)
+      .where(eq(prerequisiteVersions.prerequisiteId, prerequisiteId))
+    const currentVersion = versions.find((row) => row.isCurrent)
+    const nextNumber =
+      versions.reduce((max, row) => Math.max(max, row.version), 0) + 1
+
+    if (currentVersion) {
+      await db
+        .update(prerequisiteVersions)
+        .set({ isCurrent: false, supersededAt: now })
+        .where(eq(prerequisiteVersions.id, currentVersion.id))
+    }
+
+    await db.insert(prerequisiteVersions).values({
+      id: newId("prv"),
+      prerequisiteId,
+      text,
+      intent,
+      sortOrder: current.sortOrder,
+      version: nextNumber,
+      isCurrent: true,
+      createdAt: now,
+    })
+  }
+
   const summary =
     input.intent && input.intent !== current.intent
-      ? `Marked “${text}” as ${input.intent}.`
-      : `Edited prerequisite to “${text}”.`
+      ? `Marked “${text}” as ${input.intent}. Prior wording stays on existing runs.`
+      : `Edited prerequisite to “${text}”. Existing runs keep the previous version.`
   await bumpPlay(db, current.playId, summary, now)
 }
 

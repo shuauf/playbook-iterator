@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import type { FindingLabel } from "@/data/sample"
+import type { EvidenceStrength, RecommendationLabel } from "@/analysis/types"
 import type { PrerequisiteIntent } from "@/lib/playbook/types"
 
 const findingStyles: Record<
-  FindingLabel,
+  RecommendationLabel,
   { className: string; label: string }
 > = {
   enforce: {
@@ -29,8 +29,26 @@ const findingStyles: Record<
   },
   insufficient: {
     label: "Insufficient data",
-    className:
-      "border-transparent bg-muted text-muted-foreground",
+    className: "border-transparent bg-muted text-muted-foreground",
+  },
+}
+
+const evidenceStyles: Record<EvidenceStrength, { className: string; label: string }> = {
+  supported: {
+    label: "Supported",
+    className: "border-transparent bg-[oklch(0.93_0.04_155)] text-[oklch(0.36_0.08_155)]",
+  },
+  directional: {
+    label: "Directional",
+    className: "border-transparent bg-[oklch(0.95_0.05_75)] text-[oklch(0.45_0.12_55)]",
+  },
+  "no-difference": {
+    label: "No meaningful difference",
+    className: "border-transparent bg-[oklch(0.93_0.03_250)] text-[oklch(0.38_0.08_250)]",
+  },
+  insufficient: {
+    label: "Insufficient",
+    className: "border-transparent bg-muted text-muted-foreground",
   },
 }
 
@@ -38,10 +56,23 @@ export function FindingBadge({
   label,
   className,
 }: {
-  label: FindingLabel
+  label: RecommendationLabel
   className?: string
 }) {
   const style = findingStyles[label]
+  return (
+    <Badge className={cn(style.className, className)}>{style.label}</Badge>
+  )
+}
+
+export function EvidenceBadge({
+  strength,
+  className,
+}: {
+  strength: EvidenceStrength
+  className?: string
+}) {
+  const style = evidenceStyles[strength]
   return (
     <Badge className={cn(style.className, className)}>{style.label}</Badge>
   )

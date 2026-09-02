@@ -14,6 +14,8 @@ export type PrerequisiteDto = {
   intent: PrerequisiteIntent
   sortOrder: number
   status: PlayStatus
+  currentVersionId: string
+  version: number
 }
 
 export type PlayDto = {
@@ -43,3 +45,9 @@ export const TYPICAL_STAGES = [
 ] as const
 
 export type TypicalStage = (typeof TYPICAL_STAGES)[number]
+
+export const SEGMENTS = ["SMB", "Mid-market", "Enterprise"] as const
+export type Segment = (typeof SEGMENTS)[number]
+
+export const OPPORTUNITY_STATUSES = ["open", "won", "lost"] as const
+export type OpportunityStatus = (typeof OPPORTUNITY_STATUSES)[number]

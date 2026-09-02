@@ -29,6 +29,7 @@ function fail(error: unknown) {
 async function refresh() {
   revalidatePath("/config")
   revalidatePath("/log")
+  revalidatePath("/results")
 }
 
 export async function getPlaybookAction() {

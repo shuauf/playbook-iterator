@@ -1,9 +1,19 @@
 import type { PlaybookDb } from "@/lib/db/types"
-import { exceptionReasons, playbookEvents, plays, prerequisites } from "@/lib/db/schema"
+import {
+  exceptionReasons,
+  opportunities,
+  playbookEvents,
+  plays,
+  prerequisiteVersions,
+  prerequisites,
+} from "@/lib/db/schema"
 
 export async function seedIfEmpty(db: PlaybookDb) {
   const existing = await db.select({ id: plays.id }).from(plays).limit(1)
-  if (existing.length > 0) return
+  if (existing.length > 0) {
+    await seedSampleOpportunitiesIfEmpty(db)
+    return
+  }
 
   const now = new Date()
   const playId = "product-demo"
@@ -20,7 +30,7 @@ export async function seedIfEmpty(db: PlaybookDb) {
     updatedAt: now,
   })
 
-  await db.insert(prerequisites).values([
+  const prereqRows = [
     {
       id: "pd-direct-discovery",
       playId,
@@ -51,7 +61,21 @@ export async function seedIfEmpty(db: PlaybookDb) {
       createdAt: now,
       updatedAt: now,
     },
-  ])
+  ]
+
+  await db.insert(prerequisites).values(prereqRows)
+  await db.insert(prerequisiteVersions).values(
+    prereqRows.map((row) => ({
+      id: `${row.id}-v1`,
+      prerequisiteId: row.id,
+      text: row.text,
+      intent: row.intent,
+      sortOrder: row.sortOrder,
+      version: 1,
+      isCurrent: true,
+      createdAt: now,
+    }))
+  )
 
   await db.insert(exceptionReasons).values([
     {
@@ -137,7 +161,66 @@ export async function seedIfEmpty(db: PlaybookDb) {
     id: crypto.randomUUID(),
     playId,
     summary:
-      "Seeded as the initial standard: Product Demo with three prerequisites. Later edits write history here instead of rewriting this row.",
+      "Seeded as the initial standard: Product Demo with three prerequisites. Later edits write a new version instead of rewriting earlier runs.",
     createdAt: now,
   })
+
+  await seedSampleOpportunitiesIfEmpty(db)
+}
+
+export async function seedSampleOpportunitiesIfEmpty(db: PlaybookDb) {
+  const existing = await db.select({ id: opportunities.id }).from(opportunities).limit(1)
+  if (existing.length > 0) return
+
+  const now = new Date()
+  await db.insert(opportunities).values([
+    {
+      id: "opp-meridian",
+      externalId: "opp-meridian",
+      name: "Meridian Health — platform expansion",
+      account: "Meridian Health",
+      segment: "Enterprise",
+      se: "Maya Chen",
+      stage: "Evaluate",
+      status: "open",
+      createdAt: new Date(2026, 4, 12),
+      updatedAt: now,
+    },
+    {
+      id: "opp-northwind",
+      externalId: "opp-northwind",
+      name: "Northwind Logistics — yard visibility",
+      account: "Northwind Logistics",
+      segment: "Mid-market",
+      se: "Jordan Hale",
+      stage: "Qualify",
+      status: "open",
+      createdAt: new Date(2026, 5, 3),
+      updatedAt: now,
+    },
+    {
+      id: "opp-brightpath",
+      externalId: "opp-brightpath",
+      name: "Brightpath Credit Union — branch ops",
+      account: "Brightpath Credit Union",
+      segment: "SMB",
+      se: "Alex Rivera",
+      stage: "Evaluate",
+      status: "open",
+      createdAt: new Date(2026, 5, 22),
+      updatedAt: now,
+    },
+    {
+      id: "opp-helios",
+      externalId: "opp-helios",
+      name: "Helios Cloud — security review",
+      account: "Helios Cloud",
+      segment: "Enterprise",
+      se: "Priya Shah",
+      stage: "Validate",
+      status: "open",
+      createdAt: new Date(2026, 3, 18),
+      updatedAt: now,
+    },
+  ])
 }

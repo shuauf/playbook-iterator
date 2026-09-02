@@ -13,6 +13,7 @@ import {
   reorderPrerequisite,
   setPrerequisiteStatus,
   updatePlay,
+  updatePrerequisite,
 } from "@/lib/playbook/repo"
 
 describe("playbook persistence", () => {
@@ -79,5 +80,24 @@ describe("playbook persistence", () => {
     expect(retired).toHaveLength(1)
     expect(retired[0]?.id).toBe(firstPrereq)
     await third.client.close()
+  })
+
+  it("creates a new prerequisite version instead of rewriting history", async () => {
+    const { db, client } = await tempDb()
+    await seedIfEmpty(db)
+    const before = (await listPlays(db))[0]?.prerequisites.find(
+      (item) => item.id === "pd-business-problem"
+    )
+    expect(before?.version).toBe(1)
+    await updatePrerequisite(db, "pd-business-problem", {
+      text: "The business problem is understood and quantified",
+    })
+    const after = (await listPlays(db))[0]?.prerequisites.find(
+      (item) => item.id === "pd-business-problem"
+    )
+    expect(after?.text).toContain("quantified")
+    expect(after?.version).toBe(2)
+    expect(after?.currentVersionId).not.toBe(before?.currentVersionId)
+    await client.close()
   })
 })
