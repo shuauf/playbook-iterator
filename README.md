@@ -28,6 +28,19 @@ npm run lint
 
 SQLite lives at `data/playbook.sqlite` (gitignored). Delete it to re-seed Product Demo and a few open opportunities.
 
+## Deploy on Vercel
+
+Vercel’s function filesystem is read-only except `/tmp`. Creating `data/playbook.sqlite` under `/var/task` fails with `ENOENT: mkdir '/var/task/data'`.
+
+On Vercel this app writes SQLite to `/tmp` so the site can boot. That file is per-instance and not durable.
+
+For shared persistence, create a [Turso](https://turso.tech) database and set:
+
+```
+TURSO_DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=...
+```
+
 ## Interview dataset
 
 On **Log → Import**, use:

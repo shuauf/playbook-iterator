@@ -1,7 +1,8 @@
 import fs from "node:fs"
+import os from "node:os"
 import path from "node:path"
 
-import { createClient, type Client } from "@libsql/client"
+import { createClient, type Client, type Config } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 
 import { schema } from "@/lib/db/schema"
@@ -119,11 +120,59 @@ CREATE INDEX IF NOT EXISTS play_runs_play_idx ON play_runs(play_id);
 CREATE INDEX IF NOT EXISTS prerequisite_checks_run_idx ON prerequisite_checks(play_run_id);
 `
 
-export function defaultDbPath() {
-  return (
-    process.env.PLAYBOOK_DB_PATH ??
-    path.join(process.cwd(), "data", "playbook.sqlite")
+function env(name: string) {
+  const value = process.env[name]
+  return value && value.length > 0 ? value : undefined
+}
+
+export function isReadOnlyDeployFs() {
+  return Boolean(
+    process.env.VERCEL ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.NETLIFY ||
+      process.env.LAMBDA_TASK_ROOT
   )
+}
+
+export type DbConnection =
+  | { kind: "file"; path: string }
+  | { kind: "remote"; url: string; authToken?: string }
+
+export function defaultDbPath() {
+  const explicit = env("PLAYBOOK_DB_PATH")
+  if (explicit) return explicit
+  if (isReadOnlyDeployFs()) {
+    return path.join(os.tmpdir(), "playbook.sqlite")
+  }
+  return path.join(process.cwd(), "data", "playbook.sqlite")
+}
+
+export function resolveDbConnection(): DbConnection {
+  const url = env("PLAYBOOK_DB_URL") ?? env("TURSO_DATABASE_URL") ?? env("LIBSQL_URL")
+  if (url && !url.startsWith("file:")) {
+    return {
+      kind: "remote",
+      url,
+      authToken:
+        env("PLAYBOOK_DB_AUTH_TOKEN") ?? env("TURSO_AUTH_TOKEN") ?? env("LIBSQL_AUTH_TOKEN"),
+    }
+  }
+  return {
+    kind: "file",
+    path: url?.startsWith("file:") ? url.slice("file:".length) : defaultDbPath(),
+  }
+}
+
+export function ensureWritableSqlitePath(filePath: string) {
+  const dir = path.dirname(filePath)
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    return filePath
+  } catch {
+    const fallback = path.join(os.tmpdir(), path.basename(filePath) || "playbook.sqlite")
+    fs.mkdirSync(path.dirname(fallback), { recursive: true })
+    return fallback
+  }
 }
 
 export async function backfillPrerequisiteVersions(client: Client) {
@@ -157,15 +206,28 @@ export async function ensureSchema(client: Client) {
   await backfillPrerequisiteVersions(client)
 }
 
-export async function openPlaybookDb(filePath: string): Promise<{
+function clientConfig(connection: DbConnection): Config {
+  if (connection.kind === "remote") {
+    return { url: connection.url, authToken: connection.authToken }
+  }
+  const filePath = ensureWritableSqlitePath(connection.path)
+  return { url: `file:${filePath}` }
+}
+
+export async function openPlaybookConnection(
+  connection: DbConnection = resolveDbConnection()
+): Promise<{
   client: Client
   db: PlaybookDb
 }> {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-  const client = createClient({ url: `file:${filePath}` })
+  const client = createClient(clientConfig(connection))
   await ensureSchema(client)
   const db = drizzle(client, { schema })
   return { client, db }
+}
+
+export async function openPlaybookDb(filePath: string) {
+  return openPlaybookConnection({ kind: "file", path: filePath })
 }
 
 const globalForDb = globalThis as unknown as {
@@ -175,7 +237,7 @@ const globalForDb = globalThis as unknown as {
 export async function getDb(): Promise<PlaybookDb> {
   if (!globalForDb.playbook) {
     globalForDb.playbook = (async () => {
-      const opened = await openPlaybookDb(defaultDbPath())
+      const opened = await openPlaybookConnection()
       await seedIfEmpty(opened.db)
       await backfillPrerequisiteVersions(opened.client)
       return opened
